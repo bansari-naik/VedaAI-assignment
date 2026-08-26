@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- Outer glow ring -->
+  <circle cx="60" cy="60" r="56" stroke="#F97316" stroke-width="4" stroke-opacity="0.3"/>
+  <!-- Main circle background -->
+  <circle cx="60" cy="60" r="54" fill="#FFF7ED"/>
+  <!-- Orange accent ring -->
+  <circle cx="60" cy="60" r="50" stroke="#F97316" stroke-width="3" fill="none"/>
+  <!-- Inner face area -->
+  <circle cx="60" cy="55" r="32" fill="#FFEDD5"/>
+  <!-- Eyes -->
+  <ellipse cx="48" cy="48" rx="5" ry="7" fill="#1E293B"/>
+  <ellipse cx="72" cy="48" rx="5" ry="7" fill="#1E293B"/>
+  <!-- Smile -->
+  <path d="M45 70 Q60 82 75 70" stroke="#1E293B" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Decorative orange dots -->
+  <circle cx="28" cy="28" r="4" fill="#F97316"/>
+  <circle cx="92" cy="28" r="4" fill="#F97316"/>
+  <circle cx="28" cy="92" r="4" fill="#F97316"/>
+  <circle cx="92" cy="92" r="4" fill="#F97316"/>
+  <!-- Small accent dots on ring -->
+  <circle cx="60" cy="8" r="3" fill="#F97316"/>
+  <circle cx="60" cy="112" r="3" fill="#F97316"/>
+  <circle cx="8" cy="60" r="3" fill="#F97316"/>
+  <circle cx="112" cy="60" r="3" fill="#F97316"/>
+</svg>
