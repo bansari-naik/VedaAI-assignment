@@ -39,14 +39,6 @@ function XIcon({ className }: { className?: string }) {
   );
 }
 
-function CheckIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <polyline points="20 6 9 17 4 12"/>
-    </svg>
-  );
-}
-
 interface UploadCardProps {
   label: string;
   hint?: string;
@@ -155,10 +147,10 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
         />
         <button
           onClick={onRemove}
-          className="absolute top-2 right-2 p-1 rounded-lg text-zinc-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          className="absolute top-2 right-2 p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-200"
           aria-label={`Remove ${label}`}
         >
-          <XIcon className="w-5 h-5" />
+          <XIcon className="w-4 h-4" />
         </button>
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 flex-shrink-0 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center">
@@ -178,7 +170,7 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
 
   // Empty state - drop zone
   return (
-    <div className="upload-card relative">
+    <div className="upload-card relative group">
       <input
         ref={fileInputRef}
         type="file"
@@ -188,7 +180,7 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
         aria-label={`Upload ${label}`}
       />
       <div
-        className={`relative w-full ${isDragActive ? "border-accent bg-accent-light/50" : ""}`}
+        className={`relative w-full rounded-2xl p-2 ${isDragActive ? "border-accent bg-accent-light/50" : ""}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

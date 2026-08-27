@@ -13,8 +13,11 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Teacher's Toolkit",
-  description: "VedaAI Exams Module - Question Paper & Answer Sheet Mapping",
+  title: "AI Teacher's Toolkit – Exams",
+  description: "VedaAI Exams — Upload question paper & answer sheets, extract questions, map answers with AI, and review with bounding-box highlights.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
