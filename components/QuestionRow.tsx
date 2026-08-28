@@ -32,8 +32,8 @@ export default function QuestionRow({ question, index, mapping, grading, isSelec
       onClick={onSelect}
       className={`group relative rounded-2xl border-2 p-4 cursor-pointer transition-all ${
         isSelected
-          ? "border-accent bg-accent-light/40 dark:bg-accent/10 border-l-[4px] border-l-accent"
-          : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-zinc-300 dark:hover:border-zinc-700"
+          ? "border-accent bg-[#FFF7ED] border-l-[4px] border-l-accent shadow-sm"
+          : "border-zinc-200 bg-white hover:border-zinc-300"
       } ${lowConfidence ? "border-dashed" : ""}`}
       role="button"
       tabIndex={0}
@@ -46,18 +46,18 @@ export default function QuestionRow({ question, index, mapping, grading, isSelec
         </span>
       )}
       <div className="flex items-start gap-3">
-        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${isSelected ? "bg-accent text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300"}`}>
+        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${isSelected ? "bg-accent text-white" : "bg-zinc-100 text-zinc-700"}`}>
           {index + 1}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm font-medium text-zinc-900 dark:text-white leading-5">
+            <p className="text-sm font-medium text-zinc-900 leading-5">
               <span className="font-mono text-xs text-zinc-500 mr-1">{question.displayNumber}</span>
               {question.text}
             </p>
             <button
               onClick={(e) => { e.stopPropagation(); onToggleExpand(); }}
-              className="p-1 rounded hover:bg-zinc-100 dark:hover:bg-zinc-800 shrink-0"
+              className="p-1 rounded hover:bg-zinc-100 shrink-0"
               aria-label={isExpanded ? "Collapse" : "Expand"}
             >
               <ChevronIcon expanded={isExpanded} />
@@ -66,17 +66,17 @@ export default function QuestionRow({ question, index, mapping, grading, isSelec
           <div className="mt-2 flex items-center gap-2">
             <ScoreBadge score={grading?.score} maxScore={grading?.maxScore} status={status} isCorrect={grading?.isCorrect} />
             {question.maxMarks !== undefined && <span className="text-xs text-zinc-500">max {question.maxMarks}</span>}
-            {lowConfidence && <span className="text-xs text-amber-600 dark:text-amber-400">verify</span>}
+            {lowConfidence && <span className="text-xs text-amber-600">verify</span>}
           </div>
         </div>
       </div>
 
       {isExpanded && (
-        <div className="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-800">
+        <div className="mt-3 pt-3 border-t border-zinc-200">
           {grading ? (
-            <div className="bg-white dark:bg-zinc-800 rounded-xl p-3 border border-zinc-200 dark:border-zinc-700">
-              <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1">AI Feedback</p>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400 leading-5">{grading.feedback}</p>
+            <div className="bg-white rounded-xl p-3 border border-zinc-200 shadow-sm">
+              <p className="text-xs font-semibold text-zinc-700 mb-1">AI Feedback</p>
+              <p className="text-sm text-zinc-600 leading-5">{grading.feedback}</p>
               <a href="#" onClick={(e) => e.preventDefault()} className="text-xs text-accent hover:underline mt-2 inline-block">
                 Read it up
               </a>

@@ -1,25 +1,53 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
   <!-- Outer glow ring -->
-  <circle cx="60" cy="60" r="56" stroke="#F97316" stroke-width="4" stroke-opacity="0.3"/>
-  <!-- Main circle background -->
+  <circle cx="60" cy="60" r="56" stroke="#F97316" stroke-width="4" stroke-opacity="0.2"/>
+  <!-- Main background -->
   <circle cx="60" cy="60" r="54" fill="#FFF7ED"/>
   <!-- Orange accent ring -->
   <circle cx="60" cy="60" r="50" stroke="#F97316" stroke-width="3" fill="none"/>
-  <!-- Inner face area -->
-  <circle cx="60" cy="55" r="32" fill="#FFEDD5"/>
+  <!-- Inner circle -->
+  <circle cx="60" cy="60" r="44" fill="white"/>
+  <!-- Student head -->
+  <circle cx="60" cy="42" r="16" fill="#FFDBAC"/>
+  <!-- Hair -->
+  <path d="M44 38 Q60 18 76 38 Q76 30 60 22 Q44 30 44 38" fill="#2D1B0E"/>
+  <path d="M42 40 Q60 28 78 40 Q78 32 60 24 Q42 32 42 40" fill="#3E2723"/>
+  <!-- Graduation cap -->
+  <path d="M38 28 L60 18 L82 28 L60 38 Z" fill="#1F2937" stroke="#111827" stroke-width="1"/>
+  <rect x="58" y="38" width="4" height="8" fill="#FACC15"/>
+  <circle cx="60" cy="48" r="2" fill="#FACC15"/>
+  <!-- Cap tassel string -->
+  <path d="M60 38 Q65 42 60 48" stroke="#FACC15" stroke-width="1" fill="none"/>
   <!-- Eyes -->
-  <ellipse cx="48" cy="48" rx="5" ry="7" fill="#1E293B"/>
-  <ellipse cx="72" cy="48" rx="5" ry="7" fill="#1E293B"/>
+  <ellipse cx="53" cy="42" rx="2.5" ry="3" fill="#1E293B"/>
+  <ellipse cx="67" cy="42" rx="2.5" ry="3" fill="#1E293B"/>
+  <circle cx="54" cy="41" r="0.8" fill="white"/>
+  <circle cx="68" cy="41" r="0.8" fill="white"/>
   <!-- Smile -->
-  <path d="M45 70 Q60 82 75 70" stroke="#1E293B" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <!-- Decorative orange dots -->
-  <circle cx="28" cy="28" r="4" fill="#F97316"/>
-  <circle cx="92" cy="28" r="4" fill="#F97316"/>
-  <circle cx="28" cy="92" r="4" fill="#F97316"/>
-  <circle cx="92" cy="92" r="4" fill="#F97316"/>
-  <!-- Small accent dots on ring -->
-  <circle cx="60" cy="8" r="3" fill="#F97316"/>
-  <circle cx="60" cy="112" r="3" fill="#F97316"/>
-  <circle cx="8" cy="60" r="3" fill="#F97316"/>
-  <circle cx="112" cy="60" r="3" fill="#F97316"/>
+  <path d="M55 48 Q60 51 65 48" stroke="#1E293B" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <!-- Body / Uniform -->
+  <path d="M44 58 L60 68 L76 58 L76 82 Q60 88 44 82 Z" fill="#2563EB"/>
+  <!-- Collar -->
+  <path d="M52 58 L60 68 L68 58" fill="white" stroke="#1E40AF" stroke-width="0.5"/>
+  <path d="M60 68 L60 82" stroke="#1E40AF" stroke-width="0.5"/>
+  <!-- Arms holding book -->
+  <path d="M44 62 Q38 70 44 76" stroke="#FFDBAC" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <path d="M76 62 Q82 70 76 76" stroke="#FFDBAC" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- Book -->
+  <rect x="48" y="66" width="24" height="16" rx="1.5" fill="#F97316" stroke="#EA580C" stroke-width="1"/>
+  <rect x="50" y="68" width="20" height="12" rx="1" fill="white"/>
+  <line x1="60" y1="68" x2="60" y2="80" stroke="#E5E7EB" stroke-width="1"/>
+  <line x1="53" y1="71" x2="58" y2="71" stroke="#E5E7EB" stroke-width="0.8"/>
+  <line x1="53" y1="74" x2="58" y2="74" stroke="#E5E7EB" stroke-width="0.8"/>
+  <line x1="53" y1="77" x2="58" y2="77" stroke="#E5E7EB" stroke-width="0.8"/>
+  <line x1="62" y1="71" x2="67" y2="71" stroke="#E5E7EB" stroke-width="0.8"/>
+  <line x1="62" y1="74" x2="67" y2="74" stroke="#E5E7EB" stroke-width="0.8"/>
+  <line x1="62" y1="77" x2="67" y2="77" stroke="#E5E7EB" stroke-width="0.8"/>
+  <!-- Decorative dots -->
+  <circle cx="22" cy="30" r="3" fill="#F97316"/>
+  <circle cx="98" cy="30" r="3" fill="#F97316"/>
+  <circle cx="22" cy="90" r="3" fill="#F97316"/>
+  <circle cx="98" cy="90" r="3" fill="#F97316"/>
+  <circle cx="60" cy="10" r="2.5" fill="#F97316"/>
+  <circle cx="60" cy="110" r="2.5" fill="#F97316"/>
 </svg>

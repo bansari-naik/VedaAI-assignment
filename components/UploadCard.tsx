@@ -41,6 +41,7 @@ function XIcon({ className }: { className?: string }) {
 
 interface UploadCardProps {
   label: string;
+  labelOrange?: string;
   hint?: string;
   file: File | null;
   onFile: (file: File | null) => void;
@@ -48,7 +49,7 @@ interface UploadCardProps {
   error?: string | null;
 }
 
-export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onRemove, error }: UploadCardProps) {
+export default function UploadCard({ label, labelOrange, hint = "Max 10MB", file, onFile, onRemove, error }: UploadCardProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -136,7 +137,7 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
   if (file) {
     // Filled state
     return (
-      <div className="upload-card-filled relative group">
+      <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm relative group">
         <input
           ref={fileInputRef}
           type="file"
@@ -147,7 +148,7 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
         />
         <button
           onClick={onRemove}
-          className="absolute top-2 right-2 p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors focus:outline-none focus:ring-2 focus:ring-red-200"
+          className="absolute top-2 right-2 p-2 rounded-full text-zinc-400 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-200"
           aria-label={`Remove ${label}`}
         >
           <XIcon className="w-4 h-4" />
@@ -169,8 +170,10 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
   }
 
   // Empty state - drop zone
+  const baseLabel = labelOrange ? label.replace(labelOrange, "").trim() : label;
+  const orangePart = labelOrange ?? "";
   return (
-    <div className="upload-card relative group">
+    <div className={`bg-white rounded-2xl border-2 border-dashed ${isDragActive ? "border-[#F97316] bg-[#FFF7ED]/50" : "border-zinc-200"} p-6 text-center shadow-sm transition-colors relative group`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -180,7 +183,7 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
         aria-label={`Upload ${label}`}
       />
       <div
-        className={`relative w-full rounded-2xl p-2 ${isDragActive ? "border-accent bg-accent-light/50" : ""}`}
+        className="w-full"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -191,19 +194,20 @@ export default function UploadCard({ label, hint = "Max 10MB", file, onFile, onR
         aria-label={`Upload ${label}`}
         aria-describedby={`${label.toLowerCase().replace(/\s+/g, "-")}-hint`}
       >
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center transition-colors group-hover:border-accent">
-            <UploadIcon className="w-8 h-8 text-zinc-400 dark:text-zinc-500 group-hover:text-accent transition-colors" />
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center">
+            <UploadIcon className="w-5 h-5 text-zinc-600" />
           </div>
           <div className="text-center">
-            <p className="font-medium text-zinc-900 dark:text-white">{label}</p>
-            <p id={`${label.toLowerCase().replace(/\s+/g, "-")}-hint`} className="text-sm text-zinc-500 dark:text-zinc-400">{hint}</p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Drag & drop or click to browse</p>
+            <p className="text-sm font-semibold text-zinc-900">
+              {baseLabel} {orangePart && <span className="text-[#F97316]">{orangePart}</span>}
+            </p>
+            <p id={`${label.toLowerCase().replace(/\s+/g, "-")}-hint`} className="text-xs text-zinc-400 mt-1">{hint}</p>
           </div>
         </div>
       </div>
       {displayError && (
-        <p className="mt-3 text-sm text-red-600 dark:text-red-400 text-center" role="alert">{displayError}</p>
+        <p className="mt-3 text-sm text-red-600 text-center" role="alert">{displayError}</p>
       )}
     </div>
   );

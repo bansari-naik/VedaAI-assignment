@@ -1,21 +1,16 @@
-// Polyfill window.location for tesseract.js in Node (Next.js server) — prevents
-// "Cannot destructure property 'protocol' of 'window.location' as it is undefined."
+// Polyfill minimal for tesseract.js in Node (Next.js server)
+// NOTE: Do NOT polyfill window / document — tesseract detects environment via
+// typeof document === 'object' (browser) vs typeof process === 'object' (node).
+// Polyfilling either makes it think it's browser and resolves workerPath as http:// URL,
+// causing "worker script must be an absolute path" error. Keep both undefined so it
+// correctly detects 'node' and uses Node worker. No polyfill needed on modern Next.js.
+// Keeping navigator polyfill only if required for other libs, but not document/window.
+// (Removed earlier window.location polyfill that caused browser detection.)
 if (typeof globalThis !== "undefined") {
   const g = globalThis as unknown as Record<string, unknown>;
-  if (typeof g.window === "undefined") {
-    g.window = { location: { protocol: "http:", host: "localhost", pathname: "/", href: "http://localhost/" } } as unknown as Window;
-  } else {
-    const w = g.window as Record<string, unknown>;
-    if (typeof w.location === "undefined" || w.location === null) {
-      w.location = { protocol: "http:", host: "localhost", pathname: "/", href: "http://localhost/" } as unknown as Location;
-    } else if (typeof (w.location as Record<string, unknown>).protocol === "undefined") {
-      (w.location as Record<string, unknown>).protocol = "http:";
-    }
-  }
-  if (typeof g.document === "undefined") {
-    g.document = { createElement: () => ({ style: {} }) } as unknown as Document;
-  }
+  // Intentionally NOT polyfilling window/document to keep getEnvironment() === 'node'
   if (typeof g.navigator === "undefined") {
+    // Some libs check navigator.userAgent; provide minimal stub but not needed for tesseract
     g.navigator = { userAgent: "node" } as unknown as Navigator;
   }
 }
@@ -45,13 +40,13 @@ export function detectLabel(text: string): string | undefined {
 }
 
 export function isDegenerateBox(b: BoundingBox): boolean {
-  // reject ≤1% or ≥99% of page
-  if (b.width <= 0.01 || b.height <= 0.01) return true;
-  if (b.width >= 0.99 || b.height >= 0.99) return true;
+  // Reject tiny or extreme aspect boxes only — large page-covering blocks are valid for messy handwriting
+  // Previously rejected >=0.99 width/height and area>0.95 which incorrectly filtered single-block answer sheets
+  if (b.width <= 0.015 || b.height <= 0.015) return true;
   const area = b.width * b.height;
-  if (area < 0.005 || area > 0.95) return true;
+  if (area < 0.005) return true;
   const aspect = b.width / Math.max(b.height, 0.001);
-  if (aspect > 20 || aspect < 0.05) return true; // sanity
+  if (aspect > 20 || aspect < 0.05) return true; // sanity — very thin sliver
   return false;
 }
 
@@ -96,12 +91,31 @@ let workerPromise: Promise<any> | null = null;
 async function getWorker() {
   if (workerPromise) return workerPromise;
   workerPromise = (async () => {
-    // dynamic import to avoid bundling issues
     const { createWorker } = await import("tesseract.js");
-    const worker = await createWorker("eng");
-    // Optionally set parameters for better handwriting geometry (not text accuracy)
-    // await worker.setParameters({ tessedit_pageseg_mode: "6" } as unknown as Record<string, string>);
-    return worker;
+    const { default: path } = await import("path");
+    const { default: fs } = await import("fs");
+    // Use local eng.traineddata if present to avoid network fetch (~5MB in repo root)
+    const localLangPath = process.cwd() + path.sep; // contains eng.traineddata
+    const hasLocal = fs.existsSync(path.join(localLangPath, "eng.traineddata"));
+    const workerPath = path.join(process.cwd(), "node_modules", "tesseract.js", "src", "worker-script", "node", "index.js");
+    const hasWorkerPath = fs.existsSync(workerPath);
+    const opts: Record<string, unknown> = {};
+    if (hasLocal) {
+      opts.langPath = localLangPath;
+      opts.gzip = false;
+      console.log(`[ocr] using local langPath ${localLangPath} hasLocal=${hasLocal}`);
+    }
+    if (hasWorkerPath) {
+      opts.workerPath = workerPath;
+    }
+    try {
+      const worker = await createWorker("eng", 1, opts as unknown as Record<string, string>);
+      return worker;
+    } catch (e) {
+      console.warn(`[ocr] createWorker with opts failed ${(e as Error).message}, trying fallback`);
+      const worker = await createWorker("eng");
+      return worker;
+    }
   })();
   return workerPromise;
 }
@@ -218,14 +232,16 @@ function clusterWordsIntoBlocks(
   // Sort lines by y
   lines.sort((a, b) => a.yCenter - b.yCenter);
 
-  // Step 2: group lines into blocks by vertical gap
+  // Step 2: group lines into blocks by vertical gap — also split on detected question labels (Q1, Ans 2, etc.)
   const blocks: Array<{ lines: typeof lines; bbox: { x0: number; y0: number; x1: number; y1: number } }> = [];
   for (const line of lines) {
+    const lineText = [...line.words].sort((a, b) => a.bbox.x0 - b.bbox.x0).map((w) => w.text).join(" ");
+    const isNewAnswer = !!detectLabel(lineText);
     const last = blocks[blocks.length - 1];
-    if (last) {
+    if (last && !isNewAnswer) {
       const gap = line.bbox.y0 - last.bbox.y1;
       const avgH = (last.bbox.y1 - last.bbox.y0) / last.lines.length;
-      const threshold = Math.max(avgH * 1.8, pageH * 0.015); // ~1.5-2x line height or 1.5% page
+      const threshold = Math.max(avgH * 1.2, pageH * 0.012); // tighter: 1.2x line height so answers split
       if (gap < threshold && gap > -avgH) {
         last.lines.push(line);
         last.bbox = unionRects([last.bbox, line.bbox]);
@@ -282,6 +298,12 @@ export async function getOcrBlocksForPage(
   const { words, width, height } = await recognizePage(buffer, pageNumber);
   if (words.length === 0) return [];
   return clusterWordsIntoBlocks(words, width, height, pageNumber);
+}
+
+export async function getOcrText(buffer: Buffer): Promise<string> {
+  const worker = await getWorker();
+  const ret = await worker.recognize(buffer);
+  return ((ret.data as { text?: string }).text ?? "").trim();
 }
 
 // Helpers for tests

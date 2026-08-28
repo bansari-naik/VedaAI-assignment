@@ -8,7 +8,11 @@ const GROQ_BASE = "https://api.groq.com/openai/v1";
 
 // Priority lists — queried against /models to pick first available.
 // Vision-capable models on Groq (Scout/Maverick + legacy vision preview)
+// Updated 2026-08-28: Groq catalog now serves qwen vision (blocked on this org) + gpt-oss for text.
+// Keep qwen at top for vision when enabled, fallback to llama for legacy.
 export const VISION_MODEL_PRIORITY = [
+  "qwen/qwen3.8-27b",
+  "qwen/qwen3.6-27b",
   "meta-llama/llama-4-maverick-17b-128e-instruct",
   "meta-llama/llama-4-scout-17b-16e-instruct",
   "llama-3.2-90b-vision-preview",
@@ -16,7 +20,12 @@ export const VISION_MODEL_PRIORITY = [
 ];
 
 // Fast text models for merge/mapping/grading reasoning
+// Updated 2026-08-28: gpt-oss models are the only reliably available text models on this Groq org.
 export const TEXT_MODEL_PRIORITY = [
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "groq/compound",
+  "groq/compound-mini",
   "llama-3.3-70b-versatile",
   "llama-3.1-70b-versatile",
   "llama-3.1-8b-instant",

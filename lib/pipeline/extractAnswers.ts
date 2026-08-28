@@ -22,24 +22,57 @@ export interface PageInput {
 type LlmDraft = {
   rawText: string;
   detectedLabel?: string | null;
-  box: { x: number; y: number; w: number; h: number };
+  box: { x: number; y: number; w: number; h: number } | number[] | null;
 };
 
+function toGridObj(b: { x: number; y: number; w: number; h: number } | number[] | null | undefined): { x: number; y: number; w: number; h: number } | null {
+  if (!b) return null;
+  if (Array.isArray(b)) {
+    // Support [x,y,w,h] or [x0,y0,x1,y1] — detect by size: if w/h >500 and y1 > y, treat as x1/y1
+    if (b.length >= 4) {
+      const [a, c, e, g] = b as number[];
+      // Heuristic: if e >500 and g >500, likely x1/y1 (since w/h would be 920, but x1 also 920)
+      // For page2: [80,100,920,320] as x,y,w,h => w=920,h=320; as x0,y0,x1,y1 => w=840,h=220. Both plausible.
+      // We treat as x0,y0,x1,y1 when e - a < 950 and g - c < 950 and a < e and c < g
+      // For huge block [40,20,920,880] as x0,y0,x1,y1 => w=880,h=860; as x,y,w,h => w=920,h=880 both similar.
+      // Prefer x0,y0,x1,y1 when e > a and g > c and (e - a) < 1000 and (g - c) < 1000
+      if (e > a && g > c) {
+        // Check if interpreting as x1/y1 gives reasonable w/h (<900) — use that
+        const w1 = e - a;
+        const h1 = g - c;
+        if (w1 > 0 && w1 < 1000 && h1 > 0 && h1 < 1000) {
+          return { x: a, y: c, w: w1, h: h1 };
+        }
+      }
+      return { x: a, y: c, w: e, h: g };
+    }
+    return null;
+  }
+  if (typeof b === "object" && "x" in b && "y" in b) {
+    return b as { x: number; y: number; w: number; h: number };
+  }
+  return null;
+}
+
 function normalizeGridBox(
-  b: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number } | number[] | null | undefined,
   page: number
 ): BoundingBox {
+  const obj = toGridObj(b as any);
+  if (!obj) return clampBox({ page, x: 0.05, y: 0.05, width: 0.9, height: 0.3 });
   // grid 0–1000 → 0–1
-  const x = b.x / 1000;
-  const y = b.y / 1000;
-  const w = b.w / 1000;
-  const h = b.h / 1000;
+  const x = obj.x / 1000;
+  const y = obj.y / 1000;
+  const w = obj.w / 1000;
+  const h = obj.h / 1000;
   return clampBox({ page, x, y, width: w, height: h });
 }
 
-function isGridDegenerate(b: { x: number; y: number; w: number; h: number }): boolean {
-  if (b.w <= 10 || b.h <= 10) return true;
-  if (b.w >= 990 || b.h >= 990) return true;
+function isGridDegenerate(b: { x: number; y: number; w: number; h: number } | number[] | null | undefined): boolean {
+  const obj = toGridObj(b as any);
+  if (!obj) return true;
+  if (obj.w <= 10 || obj.h <= 10) return true;
+  if (obj.w >= 990 || obj.h >= 990) return true;
   return false;
 }
 
@@ -154,8 +187,16 @@ export async function extractAnswers(
 
   type PerPageBlocks = Array<{ rawText: string; detectedLabel?: string; region: BoundingBox; source: "llm" | "ocr" | "llm+ocr" }>;
 
-  const perPageBlocks = await runWithConcurrency(pages, 3, async (pg) => {
-    const b64 = pg.buffer.toString("base64");
+  const perPageBlocks = await runWithConcurrency(pages, 1, async (pg) => {
+    // Downscale to ~900px width to save TPM (rate limit 8k) — handwriting still readable
+    let bufForVision = pg.buffer;
+    try {
+      const meta = await sharp(pg.buffer).metadata();
+      if ((meta.width ?? 0) > 900) {
+        bufForVision = await sharp(pg.buffer).resize({ width: 900 }).png().toBuffer();
+      }
+    } catch {}
+    const b64 = bufForVision.toString("base64");
     const dataUrl = `data:image/png;base64,${b64}`;
     const messages = [
       { role: "system" as const, content: AS_SYSTEM_PROMPT },
@@ -171,13 +212,15 @@ export async function extractAnswers(
     let llmDrafts: LlmDraft[] = [];
     let llmRaw = "";
     try {
-      const { data, raw } = await chatJSON<LlmDraft[] | { blocks: LlmDraft[] }>(messages, {
+      const { data, raw } = await chatJSON<LlmDraft[] | { blocks: LlmDraft[] } | LlmDraft>(messages, {
         model: visionModel,
         temperature: 0.2,
+        maxRetries: 2,
       });
       llmRaw = raw;
       if (Array.isArray(data)) llmDrafts = data as LlmDraft[];
       else if (data && typeof data === "object" && "blocks" in (data as Record<string, unknown>)) llmDrafts = (data as { blocks: LlmDraft[] }).blocks ?? [];
+      else if (data && typeof data === "object" && "rawText" in (data as Record<string, unknown>)) llmDrafts = [data as LlmDraft];
       console.log(`[extractAnswers] page ${pg.pageNumber} LLM drafts=${llmDrafts.length}`);
     } catch (e) {
       console.warn(`[extractAnswers] page ${pg.pageNumber} LLM failed ${(e as Error).message} — will rely on OCR`);
@@ -194,7 +237,7 @@ export async function extractAnswers(
     }
 
     // Reconciliation per LLM draft
-    const reconciled: PerPageBlocks = [];
+    let reconciled: PerPageBlocks = [];
     if (llmDrafts.length === 0 && ocrBlocks.length > 0) {
       // No LLM blocks — use OCR directly
       for (const ocr of ocrBlocks) {
@@ -296,6 +339,101 @@ export async function extractAnswers(
           }
         }
       }
+    }
+
+    // Heuristic: if single huge block covering most of page, split it
+    if (reconciled.length === 1 && ocrBlocks.length <= 1) {
+      const single = reconciled[0];
+      const h = single.region.height;
+      const w = single.region.width;
+      if (h > 0.6 && w > 0.8) {
+        // If vision succeeded and text contains multiple Q labels (e.g., Q1 and Q2 in same block), split by labels
+        const isVision = single.source === "llm" || single.source === "llm+ocr";
+        const labelMatches = single.rawText.match(/Q\s*\d+/gi) || [];
+        if (isVision && labelMatches.length >= 2) {
+          // Split vision huge block that contains multiple answers by Q labels
+          const parts = labelMatches.length;
+          // Find positions of each Q label in rawText
+          const qPositions: number[] = [];
+          const qRegex = /Q\s*\d+/gi;
+          let m: RegExpExecArray | null;
+          while ((m = qRegex.exec(single.rawText)) !== null) qPositions.push(m.index);
+          qPositions.push(single.rawText.length);
+          const sliceH = h / parts;
+          const newReconciled: typeof reconciled = [];
+          for (let i = 0; i < parts; i++) {
+            const y = single.region.y + i * sliceH;
+            const sliceRegion: BoundingBox = clampBox({
+              page: single.region.page,
+              x: single.region.x + 0.01,
+              y: y + 0.005,
+              width: single.region.width - 0.02,
+              height: sliceH - 0.01,
+            });
+            const start = qPositions[i];
+            const end = qPositions[i + 1];
+            const sliceText = single.rawText.slice(start, end).trim().slice(0, 1500) || `Answer block ${i + 1}`;
+            const label = sliceText.match(/Q\s*\d+/i)?.[0];
+            newReconciled.push({
+              rawText: sliceText,
+              detectedLabel: label ? label.trim() : undefined,
+              region: sliceRegion,
+              source: single.source,
+            });
+          }
+          console.log(`[extractAnswers] page ${pg.pageNumber} split vision huge block with ${parts} Q labels into ${parts} slices`);
+          await persistDebug(sessionId, pg.pageNumber, { llmDrafts, llmRaw, ocrBlocks: ocrBlocks.map((o) => ({ rawText: o.rawText.slice(0,80), bbox: o.bbox, label: o.detectedLabel })), reconciled: newReconciled, splitVisionByLabels: true });
+          newReconciled.sort((a, b) => a.region.y - b.region.y);
+          return newReconciled;
+        }
+        // Otherwise for OCR-only huge block, split equally (handwriting poor)
+        if (single.source === "ocr") {
+          const parts = h > 0.85 ? 3 : 2;
+          const sliceH = h / parts;
+          const newReconciled: typeof reconciled = [];
+          for (let i = 0; i < parts; i++) {
+            const y = single.region.y + i * sliceH;
+            const sliceRegion: BoundingBox = clampBox({
+              page: single.region.page,
+              x: single.region.x + 0.02,
+              y: y + 0.01,
+              width: single.region.width - 0.04,
+              height: sliceH - 0.02,
+            });
+            const lines = single.rawText.split("\n");
+            const perPart = Math.ceil(lines.length / parts);
+            const sliceText = lines.slice(i * perPart, (i + 1) * perPart).join("\n") || single.rawText.slice(i * Math.floor(single.rawText.length / parts), (i + 1) * Math.floor(single.rawText.length / parts));
+            newReconciled.push({
+              rawText: sliceText.slice(0, 1200) || `Answer block ${i + 1} (page ${single.region.page})`,
+              detectedLabel: i === 0 ? single.detectedLabel : undefined,
+              region: sliceRegion,
+              source: single.source,
+            });
+          }
+          console.log(`[extractAnswers] page ${pg.pageNumber} split OCR huge single block h=${h.toFixed(2)} into ${parts} slices`);
+          await persistDebug(sessionId, pg.pageNumber, { llmDrafts, llmRaw, ocrBlocks: ocrBlocks.map((o) => ({ rawText: o.rawText.slice(0,80), bbox: o.bbox, label: o.detectedLabel })), reconciled: newReconciled, splitFromSingle: true });
+          newReconciled.sort((a, b) => {
+            if (Math.abs(a.region.y - b.region.y) > 0.02) return a.region.y - b.region.y;
+            return a.region.x - b.region.x;
+          });
+          return newReconciled;
+        }
+      }
+    }
+
+    // Filter out header/noise blocks — but keep blocks that contain actual answers (with Q labels)
+    const beforeHeaderFilter = reconciled.length;
+    reconciled = reconciled.filter((b) => {
+      const t = b.rawText.toLowerCase().trim();
+      if (t === "| |" || t.length < 5) return false;
+      // Only filter "Post lab questions" header if it doesn't also contain a Q answer
+      if (t.includes("post lab") && b.region.y < 0.12 && !t.includes("q1") && !t.includes("q2") && !t.includes("q3")) {
+        return false;
+      }
+      return true;
+    });
+    if (reconciled.length !== beforeHeaderFilter) {
+      console.log(`[extractAnswers] page ${pg.pageNumber} filtered ${beforeHeaderFilter - reconciled.length} header/noise blocks`);
     }
 
     await persistDebug(sessionId, pg.pageNumber, { llmDrafts, llmRaw, ocrBlocks: ocrBlocks.map((o) => ({ rawText: o.rawText.slice(0,80), bbox: o.bbox, label: o.detectedLabel })), reconciled });

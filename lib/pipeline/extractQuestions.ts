@@ -84,12 +84,82 @@ async function persistDebug(sessionId: string | undefined, pageNum: number, raw:
  * Extract questions from rasterized QP pages.
  * PRD §6.2: per-page vision calls (concurrency 3) → concat → merge pass → sanitize → assign ids/orderIndex.
  */
+async function ocrFallbackDrafts(pg: PageInput, total: number, sessionId: string | undefined): Promise<{ drafts: Draft[]; raw: string }> {
+  try {
+    let ocrText = "";
+    // Try fast PDF text extraction via mupdf from original file (printed PDFs) before heavy OCR
+    if (sessionId) {
+      try {
+        const origDir = path.join(os.tmpdir(), "vedaai", sessionId, "orig");
+        const files = await fs.readdir(origDir).catch(() => [] as string[]);
+        const qpFile = files.find((f) => f.startsWith("qp"));
+        if (qpFile && qpFile.toLowerCase().endsWith(".pdf")) {
+          const pdfBuf = await fs.readFile(path.join(origDir, qpFile)).catch(() => null);
+          if (pdfBuf) {
+            const mupdf = (await import("mupdf")).default;
+            const doc = mupdf.Document.openDocument(pdfBuf, "application/pdf");
+            if (pg.pageNumber <= doc.countPages()) {
+              const page = doc.loadPage(pg.pageNumber - 1);
+              const txt = (page.toStructuredText("preserve-whitespace") as unknown as { asText: () => string }).asText?.() ?? "";
+              if (txt && txt.trim().length > 20) {
+                ocrText = txt.trim();
+                console.log(`[extractQuestions] mupdf text extraction page ${pg.pageNumber} len=${ocrText.length} (fast path)`);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[extractQuestions] mupdf fallback failed page ${pg.pageNumber}: ${(e as Error).message}`);
+      }
+    }
+    if (!ocrText) {
+      const { getOcrText } = await import("@/lib/ocrFallback");
+      ocrText = await getOcrText(pg.buffer);
+    }
+    console.log(`[extractQuestions] OCR fallback page ${pg.pageNumber} ocrTextLen=${ocrText.length} head=${ocrText.slice(0,120).replace(/\n/g," ")}`);
+    if (!ocrText || ocrText.length < 10) {
+      console.warn(`[extractQuestions] OCR fallback page ${pg.pageNumber} produced empty/short text, returning []`);
+      await persistDebug(sessionId, pg.pageNumber, `OCR_EMPTY: ${ocrText}`, []);
+      return { drafts: [], raw: `OCR_EMPTY` };
+    }
+    const textModel = await pickTextModel().catch(() => "openai/gpt-oss-120b");
+    const ocrMessages = [
+      { role: "system" as const, content: QP_SYSTEM_PROMPT },
+      {
+        role: "user" as const,
+        content: `This is page ${pg.pageNumber} of ${total} of the question paper — OCR transcription (may have minor errors). Parse questions from this TEXT only (no image). OCR Text:\n"""${ocrText.slice(0,4000)}"""\n\nReturn JSON array as specified. Set sourcePage to ${pg.pageNumber} for every entry. Output ONLY the JSON array.`,
+      },
+    ];
+    const { data, raw } = await chatJSON<Draft[] | { questions: Draft[] }>(ocrMessages, {
+      model: textModel,
+      temperature: 0.1,
+    });
+    let drafts: Draft[] = [];
+    if (Array.isArray(data)) drafts = data as Draft[];
+    else if (data && typeof data === "object" && "questions" in (data as Record<string, unknown>)) drafts = (data as { questions: Draft[] }).questions ?? [];
+    console.log(`[extractQuestions] OCR fallback page ${pg.pageNumber} got ${drafts.length} drafts via text model ${textModel}`);
+    await persistDebug(sessionId, pg.pageNumber, `OCR_FALLBACK rawText=${ocrText.slice(0,300)} || LLM raw=${raw.slice(0,500)}`, drafts);
+    return { drafts, raw: `OCR_FALLBACK:${raw}` };
+  } catch (e) {
+    const msg = (e as Error).message ?? "";
+    // Auth errors (401/403) should propagate to pipeline error, not silent empty, so tests and UI show proper error
+    if (msg.includes("401") || msg.includes("Invalid API key") || msg.includes("invalid_request_error") && msg.includes("401")) {
+      console.warn(`[extractQuestions] OCR fallback auth failure page ${pg.pageNumber}, propagating to pipeline error`);
+      await persistDebug(sessionId, pg.pageNumber, `OCR_FALLBACK_AUTH_ERROR: ${msg}`, []);
+      throw new Error(`Question extraction failed: ${msg}`);
+    }
+    console.warn(`[extractQuestions] OCR fallback failed page ${pg.pageNumber}: ${msg}`);
+    await persistDebug(sessionId, pg.pageNumber, `OCR_FALLBACK_ERROR: ${msg}`, []);
+    return { drafts: [], raw: `OCR_FALLBACK_ERROR` };
+  }
+}
+
 export async function extractQuestions(pages: PageInput[], sessionId?: string): Promise<ExtractedQuestion[]> {
   if (pages.length === 0) return [];
 
   const visionModel = await pickVisionModel().catch(() => {
     console.warn("[extractQuestions] pickVisionModel failed, using default");
-    return "meta-llama/llama-4-maverick-17b-128e-instruct";
+    return "qwen/qwen3.8-27b";
   });
   const total = pages.length;
   console.log(`[extractQuestions] start visionModel=${visionModel} pages=${total} session=${sessionId ?? "-"}`);
@@ -97,7 +167,6 @@ export async function extractQuestions(pages: PageInput[], sessionId?: string): 
   type PerPageResult = { drafts: Draft[]; raw: string };
   const perPage = await runWithConcurrency(pages, 3, async (pg) => {
     const b64 = pg.buffer.toString("base64");
-    // Heuristic mime: PNG buffers start with 89504E47
     const dataUrl = `data:image/png;base64,${b64}`;
     const messages = [
       { role: "system" as const, content: QP_SYSTEM_PROMPT },
@@ -110,24 +179,29 @@ export async function extractQuestions(pages: PageInput[], sessionId?: string): 
       },
     ];
 
-    const { data, raw, latencyMs } = await chatJSON<Draft[] | { questions: Draft[] }>(messages, {
-      model: visionModel,
-      temperature: 0.1,
-    });
-
-    // Normalize to array
-    let drafts: Draft[] = [];
-    if (Array.isArray(data)) drafts = data as Draft[];
-    else if (data && typeof data === "object" && "questions" in (data as Record<string, unknown>) && Array.isArray((data as { questions: Draft[] }).questions)) {
-      drafts = (data as { questions: Draft[] }).questions;
-    } else {
-      console.warn(`[extractQuestions] page ${pg.pageNumber} unexpected JSON shape`, JSON.stringify(data).slice(0,300));
-      drafts = [];
+    try {
+      const { data, raw, latencyMs } = await chatJSON<Draft[] | { questions: Draft[] }>(messages, {
+        model: visionModel,
+        temperature: 0.1,
+      });
+      let drafts: Draft[] = [];
+      if (Array.isArray(data)) drafts = data as Draft[];
+      else if (data && typeof data === "object" && "questions" in (data as Record<string, unknown>) && Array.isArray((data as { questions: Draft[] }).questions)) {
+        drafts = (data as { questions: Draft[] }).questions;
+      } else {
+        console.warn(`[extractQuestions] page ${pg.pageNumber} unexpected JSON shape`, JSON.stringify(data).slice(0,300));
+        drafts = [];
+      }
+      console.log(`[extractQuestions] page ${pg.pageNumber} got ${drafts.length} drafts latency=${latencyMs}ms`);
+      await persistDebug(sessionId, pg.pageNumber, raw, drafts);
+      return { drafts, raw } as PerPageResult;
+    } catch (visionErr) {
+      const msg = (visionErr as Error).message ?? String(visionErr);
+      const isVisionModelError = msg.includes("model_not_found") || msg.includes("model_permission_blocked") || msg.includes("404") || msg.includes("403") || msg.includes("does not exist") || msg.includes("blocked");
+      console.warn(`[extractQuestions] page ${pg.pageNumber} vision failed (${msg.slice(0,200)}) — trying OCR fallback isVisionError=${isVisionModelError}`);
+      // Always fallback via OCR for printed QPs — handwriting fallback not needed for questions
+      return await ocrFallbackDrafts(pg, total, sessionId);
     }
-
-    console.log(`[extractQuestions] page ${pg.pageNumber} got ${drafts.length} drafts latency=${latencyMs}ms`);
-    await persistDebug(sessionId, pg.pageNumber, raw, drafts);
-    return { drafts, raw } as PerPageResult;
   });
 
   const concatenated = perPage.flatMap((r) => r.drafts);

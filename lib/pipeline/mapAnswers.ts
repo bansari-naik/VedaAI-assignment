@@ -188,7 +188,19 @@ export async function mapAnswers(
   const pre = labelPrePass(questions, answers);
   let llmMappings: QuestionAnswerMapping[] = [];
 
-  if (pre.remainingQuestions.length > 0 && pre.remainingAnswers.length > 0) {
+  // Detect garbage OCR (handwriting with blocked vision → unreadable)
+  const isGarbage = (s: string) => {
+    if (!s || s.trim().length < 10) return true; // tiny "| |" etc is garbage for mapping
+    const garbageChars = (s.match(/[�~|_\\]/g) || []).length;
+    const alpha = (s.match(/[a-zA-Z]/g) || []).length;
+    const ratio = alpha / s.length;
+    return garbageChars / s.length > 0.03 || ratio < 0.45;
+  };
+  const garbageCount = pre.remainingAnswers.filter((a) => isGarbage(a.rawText)).length;
+  const allRemainingGarbage = pre.remainingAnswers.length > 0 && garbageCount >= Math.ceil(pre.remainingAnswers.length * 0.5);
+  const shouldSkipLLM = allRemainingGarbage;
+
+  if (pre.remainingQuestions.length > 0 && pre.remainingAnswers.length > 0 && !shouldSkipLLM) {
     const model = await pickTextModel().catch(() => "llama-3.3-70b-versatile");
     console.log(`[mapAnswers] LLM mapping model=${model} Q=${pre.remainingQuestions.length} A=${pre.remainingAnswers.length}`);
 
@@ -225,8 +237,41 @@ export async function mapAnswers(
     console.log("[mapAnswers] LLM mapping skipped — pre-pass covered all or one side empty");
   }
 
-  const combined = [...pre.mappings, ...llmMappings];
+  let combined = [...pre.mappings, ...llmMappings];
   console.log(`[mapAnswers] combined ${combined.length} before repair (pre=${pre.mappings.length} llm=${llmMappings.length})`);
+
+  // Fallback: if vision blocked and OCR garbage produced 0 matched (common for handwriting), do order-based heuristic so UI shows results
+  const hasMatched = combined.some((m) => m.status === "matched");
+  if (!hasMatched && questions.length > 0 && answers.length > 0) {
+    // Check if LLM produced only unanswered/unmatched (i.e., garbage text)
+    const onlyUnanswered = combined.every((m) => m.status !== "matched");
+    if (onlyUnanswered) {
+      console.log(`[mapAnswers] fallback: no matched found (likely OCR garbage), doing order-based heuristic for ${Math.min(questions.length, answers.length)} pairs`);
+      // Clear the unanswered/unmatched that LLM produced, we'll re-create via heuristic + repair will fill rest
+      // Keep only pre.mappings (which are 0) and create order-based matches
+      const heuristic: QuestionAnswerMapping[] = [];
+      const sortedQs = [...questions].sort((a, b) => a.orderIndex - b.orderIndex);
+      // Sort answers by page then y (already sorted in extractAnswers, but ensure)
+      const sortedAs = [...answers].sort((a, b) => {
+        const ra = a.regions[0];
+        const rb = b.regions[0];
+        if (!ra || !rb) return 0;
+        if (ra.page !== rb.page) return ra.page - rb.page;
+        return ra.y - rb.y;
+      });
+      const n = Math.min(sortedQs.length, sortedAs.length);
+      for (let i = 0; i < n; i++) {
+        heuristic.push({
+          questionId: sortedQs[i].id,
+          answerBlockId: sortedAs[i].id,
+          status: "matched",
+          confidence: 0.55, // low confidence to indicate heuristic
+        });
+      }
+      combined = [...pre.mappings, ...heuristic];
+      console.log(`[mapAnswers] heuristic created ${heuristic.length} order-based matches`);
+    }
+  }
 
   const repaired = repairMappings(combined, questions, answers);
 

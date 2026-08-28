@@ -33,7 +33,6 @@ export default function ReviewPage() {
       .then((data) => {
         if (!data) return;
         setSession(data as SessionState);
-        // Initialize selected question to first in order
         if (data.questions?.length > 0) {
           const sorted = [...data.questions].sort((a: { orderIndex: number }, b: { orderIndex: number }) => a.orderIndex - b.orderIndex);
           setSelectedQuestionId(sorted[0].id);
@@ -52,13 +51,13 @@ export default function ReviewPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-screen bg-[#F5F5F7]">
         <Sidebar collapsed onToggleCollapse={() => {}} />
         <div className="pl-16">
           <TopBar />
           <main className="p-8 text-center">
             <p className="text-red-600">{error}</p>
-            <button onClick={() => router.push("/exams/upload")} className="btn-primary mt-4">Back to upload</button>
+            <button onClick={() => router.push("/exams/upload")} className="mt-4 px-4 py-2 rounded-full bg-zinc-900 text-white text-sm">Back to upload</button>
           </main>
         </div>
       </div>
@@ -67,15 +66,14 @@ export default function ReviewPage() {
 
   if (!session) {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-screen bg-[#F5F5F7]">
         <Sidebar collapsed onToggleCollapse={() => {}} />
         <div className="pl-16">
           <TopBar />
           <main className="flex items-center justify-center min-h-[calc(100vh-64px)]">
             <div className="text-center">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+              <div className="w-8 h-8 border-2 border-[#F97316] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
               <p className="text-sm text-zinc-500">Loading review…</p>
-              <p className="text-xs text-zinc-400 mt-2">Fetching session {sessionId.slice(0, 8)}…</p>
             </div>
           </main>
         </div>
@@ -85,24 +83,20 @@ export default function ReviewPage() {
 
   if (session.status !== "ready") {
     return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-screen bg-[#F5F5F7]">
         <Sidebar collapsed onToggleCollapse={() => {}} />
         <div className="pl-16">
           <TopBar />
           <main className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] p-8 text-center">
-            <div className="w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mb-4">
+            <div className="w-12 h-12 rounded-full bg-amber-100 flex items-center justify-center mb-4">
               <span className="text-amber-600 text-xl">!</span>
             </div>
-            <h2 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">Session not ready</h2>
-            <p className="text-sm text-zinc-500 mb-1">Status: <span className="font-mono bg-zinc-100 dark:bg-zinc-800 px-1 rounded">{session.status}</span></p>
-            {session.error && <p className="text-sm text-red-600 dark:text-red-400 mb-4 max-w-md">{session.error}</p>}
+            <h2 className="text-lg font-semibold text-zinc-900 mb-2">Session not ready</h2>
+            <p className="text-sm text-zinc-500 mb-1">Status: <span className="font-mono bg-zinc-100 px-1 rounded">{session.status}</span></p>
+            {session.error && <p className="text-sm text-red-600 mb-4 max-w-md">{session.error}</p>}
             <div className="flex gap-3">
-              <button onClick={() => router.push(`/exams/${sessionId}/processing`)} className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-medium">
-                Go to processing
-              </button>
-              <button onClick={() => router.push("/exams/upload")} className="inline-flex items-center justify-center px-4 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-sm">
-                Back to upload
-              </button>
+              <button onClick={() => router.push(`/exams/${sessionId}/processing`)} className="px-4 py-2 rounded-full bg-zinc-900 text-white text-sm">Go to processing</button>
+              <button onClick={() => router.push("/exams/upload")} className="px-4 py-2 rounded-full border bg-white text-sm">Back to upload</button>
             </div>
           </main>
         </div>
@@ -123,16 +117,14 @@ export default function ReviewPage() {
         totalPages,
       }}
     >
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <div className="min-h-screen bg-[#F5F5F7]">
         <Sidebar collapsed onToggleCollapse={() => {}} />
         <div className="pl-16 flex flex-col min-h-screen">
           <TopBar />
           <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 lg:p-6 min-h-0">
-            {/* Left pane */}
-            <div className="lg:w-[420px] xl:w-[460px] shrink-0 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 flex flex-col min-h-[400px] lg:min-h-0 lg:h-[calc(100vh-88px)]">
+            <div className="lg:w-[420px] xl:w-[460px] shrink-0 bg-white rounded-2xl border border-zinc-200 p-4 flex flex-col min-h-[400px] lg:min-h-0 lg:h-[calc(100vh-88px)]">
               <QuestionList questions={session.questions} mappings={session.mappings} grading={session.grading} answers={session.answers} />
             </div>
-            {/* Right pane */}
             <div className="flex-1 min-h-[500px] lg:min-h-0 lg:h-[calc(100vh-88px)]">
               <AnswerSheetViewer />
             </div>
