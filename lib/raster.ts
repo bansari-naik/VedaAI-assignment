@@ -78,37 +78,7 @@ export async function rasterizeToPages(
       return pages;
     } catch (mupdfErr) {
       const mupdfMsg = (mupdfErr as Error).message || String(mupdfErr);
-      console.warn(`[raster] mupdf failed (${mupdfMsg}), trying pdf-to-img fallback`);
-
-      // Secondary: pdf-to-img (requires canvas native module)
-      try {
-        const { pdf } = await import("pdf-to-img");
-        const doc = await pdf(fileBuffer, { scale: 2 });
-        const pages: RasterPage[] = [];
-        let pageNum = 0;
-
-        for await (const raw of doc) {
-          pageNum++;
-          if (pageNum > MAX_PAGES) {
-            console.warn(`[raster] PDF exceeds ${MAX_PAGES} pages, truncating at page ${pageNum}`);
-            break;
-          }
-          const meta = await sharp(raw).metadata();
-          const png = await sharp(raw).png().toBuffer();
-          const width = meta.width ?? 0;
-          const height = meta.height ?? 0;
-          pages.push({ buffer: png, width, height });
-        }
-
-        if (pages.length > 0) {
-          console.log(`[raster] PDF rasterized ${pages.length} pages in ${Date.now() - start}ms (pdf-to-img fallback)`);
-          return pages;
-        }
-        throw new Error("pdf-to-img produced 0 pages");
-      } catch (pdfToImgErr) {
-        const msg = (pdfToImgErr as Error).message || String(pdfToImgErr);
-        console.warn(`[raster] pdf-to-img also failed (${msg}), using placeholder PNGs`);
-      }
+      console.warn(`[raster] mupdf failed (${mupdfMsg}), using placeholder PNGs`);
 
       // Tertiary fallback: placeholder PNGs via pdf-lib (pure JS, no native deps)
       try {

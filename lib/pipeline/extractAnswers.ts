@@ -280,7 +280,7 @@ export async function extractAnswers(
           if (nearest && bestDist < 0.5) {
             region = nearest.bbox;
             source = "ocr";
-            console.log(`[extractAnswers] page ${pg.pageNumber} box degenerate w=${draft.box.w} h=${draft.box.h} → OCR fallback dist=${bestDist.toFixed(3)}`);
+            console.log(`[extractAnswers] page ${pg.pageNumber} box degenerate w=${llmBox.width} h=${llmBox.height} → OCR fallback dist=${bestDist.toFixed(3)}`);
           } else {
             // if no near OCR, keep LLM but clamp (maybe still degenerate — fallback to full page inner rect)
             if (nearest) {
