@@ -163,8 +163,11 @@ export default function ProcessingPage() {
         <TopBar />
         <main className="flex flex-col items-center justify-center min-h-[calc(100vh-64px)] p-8 text-center">
           <div className="w-16 h-16 rounded-2xl bg-[#FFF1E6] flex items-center justify-center mb-6 animate-pulse">
-            <svg className="w-8 h-8 text-[#F97316]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+            <svg className="w-8 h-8 text-[#F97316]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z"/>
+              <circle cx="4" cy="4" r="1.5"/>
+              <circle cx="20" cy="4" r="1"/>
+              <circle cx="21" cy="19" r="1.2"/>
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-zinc-900 mb-2">Extracting{dots}</h1>

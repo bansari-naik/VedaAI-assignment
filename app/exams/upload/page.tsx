@@ -63,24 +63,24 @@ export default function UploadPage() {
       <Sidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className={`transition-all duration-200 ${sidebarCollapsed ? "pl-16 lg:pl-16" : "pl-16 lg:pl-64"}`}>
         <TopBar />
-        <main className="px-4 md:px-8 lg:px-12 py-6 flex flex-col items-center justify-center min-h-[calc(100vh-72px)]">
+        <main className="px-4 md:px-8 lg:px-12 py-3 flex flex-col items-center justify-center min-h-[calc(100vh-72px)]">
           <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
             {/* Page Header */}
-            <div className="text-center mb-6">
+            <div className="text-center mb-3">
               <h1 className="text-2xl md:text-[28px] font-extrabold tracking-tight">
                 <span className="text-zinc-900">Upload</span>{" "}
                 <span className="bg-[#FFE9E0] text-[#F97316] px-2.5 py-1 rounded-lg font-bold">Question Paper & Answer Sheets</span>
               </h1>
-              <p className="text-sm text-zinc-500 mt-3">Upload both files to get started</p>
+              <p className="text-sm text-zinc-500 mt-2">Upload both files to get started</p>
             </div>
 
             {/* Mascot - student avatar with Lumina UI + LottieFiles */}
-            <div className="flex justify-center mb-8">
-              <div className="relative w-28 h-28 md:w-32 md:h-32 rounded-full bg-white border-[3px] border-[#F97316]/30 shadow-sm flex items-center justify-center p-1 overflow-hidden">
-                <LuminaAvatar firstName="Student" lastName="Avatar" imageUrl="/mascot.svg" size={112} fontSizeChange={false} />
+            <div className="flex justify-center mb-4">
+              <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-full bg-white border-[3px] border-[#F97316]/30 shadow-sm flex items-center justify-center p-1 overflow-hidden">
+                <LuminaAvatar firstName="Student" lastName="Avatar" imageUrl="/mascot.svg" size={80} fontSizeChange={false} />
                 {/* Decorative LottieFiles - small floating book */}
                 {LottieComp && (
-                  <div className="absolute -top-1 -right-1 w-10 h-10 bg-white rounded-full shadow-md border border-[#FFE9E0] p-1.5 flex items-center justify-center">
+                  <div className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-full shadow-md border border-[#FFE9E0] p-1 flex items-center justify-center">
                     <LottieComp animationData={studentAnimation} loop autoplay className="w-full h-full" />
                   </div>
                 )}
@@ -88,7 +88,7 @@ export default function UploadPage() {
             </div>
 
             {/* Upload Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 w-full max-w-3xl mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl mb-4">
               <UploadCard
                 label="Upload Question Paper"
                 labelOrange="Question Paper"
@@ -108,7 +108,7 @@ export default function UploadPage() {
             </div>
 
             {/* Helper text + Button */}
-            <div className="flex flex-col items-center gap-4 w-full max-w-3xl">
+            <div className="flex flex-col items-center gap-3 w-full max-w-3xl">
               <button
                 onClick={handleStartMapping}
                 disabled={!(qpFile && asFile) || isUploading}

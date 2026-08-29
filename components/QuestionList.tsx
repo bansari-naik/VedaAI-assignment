@@ -87,9 +87,9 @@ export default function QuestionList({ questions, mappings, grading }: QuestionL
           })
         )}
         {unmatchedCount > 0 && (
-          <div className="mt-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-            <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">Unmatched Answers ({unmatchedCount})</h3>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-1">These answer blocks did not match any question. Review manually.</p>
+          <div className="mt-4 p-4 rounded-2xl bg-white border-2 border-zinc-300">
+            <h3 className="text-sm font-bold text-black">Unmatched Answers ({unmatchedCount})</h3>
+            <p className="text-xs text-zinc-600 mt-1">These answer blocks did not match any question. Review manually.</p>
           </div>
         )}
       </div>

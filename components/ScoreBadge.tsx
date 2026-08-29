@@ -20,13 +20,12 @@ export default function ScoreBadge({ score, maxScore, status, className }: Score
   }
   const ratio = score / maxScore;
   let tier = "bg-zinc-100 text-zinc-600";
-  if (ratio >= 0.8) tier = "bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800";
-  else if (ratio >= 0.4) tier = "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800";
-  else tier = "bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800";
+  if (ratio >= 0.8) tier = "bg-green-100 text-green-800 border border-green-300";
+  else tier = "bg-red-100 text-red-700 border border-red-300";
 
   // isCorrect could also influence, but ratio is primary per spec
   return (
-    <span className={`badge-pill ${tier} font-semibold text-xs ${className ?? ""}`}>
+    <span className={`inline-flex items-center px-3 py-1 rounded-full font-bold text-sm ${tier} ${className ?? ""}`}>
       {score}/{maxScore}
     </span>
   );

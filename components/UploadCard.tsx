@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, DragEvent, ChangeEvent } from "react";
+import { useState, useRef, useCallback, useEffect, DragEvent, ChangeEvent } from "react";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -52,7 +52,29 @@ interface UploadCardProps {
 export default function UploadCard({ label, labelOrange, hint = "Max 10MB", file, onFile, onRemove, error }: UploadCardProps) {
   const [isDragActive, setIsDragActive] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get PDF page count when file changes
+  useEffect(() => {
+    if (file && file.type === "application/pdf") {
+      let cancelled = false;
+      file.arrayBuffer().then((buf) => {
+        import("pdf-lib").then(({ PDFDocument }) => {
+          if (cancelled) return;
+          try {
+            const pdfDoc = PDFDocument.load(buf);
+            setPageCount((pdfDoc as unknown as { getPageCount: () => number }).getPageCount());
+          } catch {
+            setPageCount(null);
+          }
+        });
+      });
+      return () => { cancelled = true; };
+    } else {
+      setPageCount(null);
+    }
+  }, [file]);
 
   const validateFile = useCallback((f: File): string | null => {
     // Check extension as fallback (Windows may report odd MIME types)
@@ -135,7 +157,7 @@ export default function UploadCard({ label, labelOrange, hint = "Max 10MB", file
   const displayError = error || localError;
 
   if (file) {
-    // Filled state
+    const isPdf = file.type === "application/pdf";
     return (
       <div className="bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm relative group">
         <input
@@ -153,13 +175,15 @@ export default function UploadCard({ label, labelOrange, hint = "Max 10MB", file
         >
           <XIcon className="w-4 h-4" />
         </button>
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 flex-shrink-0 rounded-xl bg-red-50 dark:bg-red-900/30 flex items-center justify-center">
-            <FileIcon className="w-7 h-7 text-red-600 dark:text-red-400" />
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 flex-shrink-0 rounded-xl flex items-center justify-center text-white text-xs font-bold ${isPdf ? "bg-red-500" : "bg-blue-500"}`}>
+            {isPdf ? "PDF" : "IMG"}
           </div>
           <div className="flex-1 min-w-0 text-left">
-            <p className="font-medium text-zinc-900 dark:text-white truncate">{file.name}</p>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">{formatSize(file.size)}</p>
+            <p className="font-semibold text-sm text-zinc-900 truncate">{file.name}</p>
+            <p className="text-xs text-zinc-500 mt-0.5">
+              {formatSize(file.size)}{pageCount != null && ` \u2022 ${pageCount} Page${pageCount !== 1 ? "s" : ""}`}
+            </p>
           </div>
         </div>
         {displayError && (
@@ -173,7 +197,7 @@ export default function UploadCard({ label, labelOrange, hint = "Max 10MB", file
   const baseLabel = labelOrange ? label.replace(labelOrange, "").trim() : label;
   const orangePart = labelOrange ?? "";
   return (
-    <div className={`bg-white rounded-2xl border-2 border-dashed ${isDragActive ? "border-[#F97316] bg-[#FFF7ED]/50" : "border-zinc-200"} p-6 text-center shadow-sm transition-colors relative group`}>
+    <div className={`bg-white rounded-2xl border-2 border-dashed ${isDragActive ? "border-[#F97316] bg-[#FFF7ED]/50" : "border-zinc-200"} p-5 text-center shadow-sm transition-colors relative group`}>
       <input
         ref={fileInputRef}
         type="file"
@@ -194,7 +218,7 @@ export default function UploadCard({ label, labelOrange, hint = "Max 10MB", file
         aria-label={`Upload ${label}`}
         aria-describedby={`${label.toLowerCase().replace(/\s+/g, "-")}-hint`}
       >
-        <div className="flex flex-col items-center gap-3">
+        <div className="flex flex-col items-center gap-2">
           <div className="w-12 h-12 rounded-xl bg-zinc-50 border border-zinc-100 flex items-center justify-center">
             <UploadIcon className="w-5 h-5 text-zinc-600" />
           </div>
